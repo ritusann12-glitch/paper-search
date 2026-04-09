@@ -39,7 +39,7 @@
   .overview-translating { font-size: 0.8rem; color: #999; font-style: italic; margin-bottom: 8px; }
   .paper-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; font-weight: 600; }
   .badge-pubmed { background: #e3f0ff; color: #3a7bd5; }
-  .badge-jstage { background: #fff3e0; color: #e67e22; }
+  .badge-cinii { background: #fff3e0; color: #e67e22; }
   .paper-title { font-size: 1.1rem; font-weight: 700; color: #2d3748; margin-bottom: 8px; }
   .paper-title a { color: inherit; text-decoration: none; }
   .paper-title a:hover { color: #43b89c; }
@@ -68,7 +68,7 @@
 
 <div class="header">
   <h1>医療論文サーチ</h1>
-  <p>日本語で検索 → PubMed（世界）+ J-STAGE（日本）を同時検索<br>英語論文は自動翻訳して表示します</p>
+  <p>日本語で検索 → PubMed（世界）+ CiNii Research（日本）を同時検索<br>英語論文は自動翻訳して表示します</p>
 </div>
 
 <div class="search-box">
@@ -102,7 +102,7 @@
 
 <div class="footer">
   情報ソース: <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank">PubMed / NCBI</a> (米国国立医学図書館)
-  | <a href="https://www.jstage.jst.go.jp/" target="_blank">J-STAGE</a> (科学技術振興機構)
+  | <a href="https://cir.nii.ac.jp/" target="_blank">CiNii Research</a> (国立情報学研究所)
   <br>翻訳: Google Translate
 </div>
 
@@ -244,66 +244,50 @@ async function searchPubMed(query, limit, sort) {
   return { total: Number(totalCount), papers };
 }
 
-// ===== J-STAGE検索 =====
-async function searchJStage(query, limit, sort) {
+// ===== CiNii Research検索（日本の論文） =====
+async function searchCiNii(query, limit, sort) {
   try {
-    const sortParam = sort === 'date' ? '&sortflg=2' : '&sortflg=1';
-    const originalUrl = `https://api.jstage.jst.go.jp/searchapi/do?service=3&keyword=${encodeURIComponent(query)}&count=${limit}${sortParam}`;
-    // J-STAGEはCORS未対応のためプロキシ経由
-    const url = `https://corsproxy.io/?url=${encodeURIComponent(originalUrl)}`;
+    const sortParam = sort === 'date' ? '&sortorder=0' : '&sortorder=1';
+    const url = `https://cir.nii.ac.jp/opensearch/articles?q=${encodeURIComponent(query)}&count=${limit}&format=json${sortParam}`;
     const res = await fetch(url);
     if (!res.ok) return { total: 0, papers: [] };
-    const xmlText = await res.text();
+    const data = await res.json();
 
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, 'text/xml');
-
-    const totalStr = xml.querySelector('opensearch\\:totalResults, totalResults')?.textContent || '0';
-    const entries = xml.querySelectorAll('entry');
+    const total = data['opensearch:totalResults'] || 0;
+    const items = data.items || [];
 
     const papers = [];
-    for (const entry of entries) {
-      // J-STAGE XMLは <article_title><ja>...</ja><en>...</en></article_title> 構造
-      const titleJa = entry.querySelector('article_title > ja')?.textContent?.trim() || '';
-      const titleEn = entry.querySelector('article_title > en')?.textContent?.trim() || '';
-      const titleFallback = entry.querySelector('title')?.textContent?.trim() || '';
-      const title = titleJa || titleFallback || titleEn || '(タイトルなし)';
+    for (const item of items) {
+      const title = item.title || '(タイトルなし)';
+      const creators = item['dc:creator'] || [];
+      const authorStr = creators.length > 3
+        ? creators.slice(0, 3).join(', ') + ` 他${creators.length - 3}名`
+        : creators.join(', ') || '著者不明';
 
-      const abstractJa = entry.querySelector('abstract > ja')?.textContent?.trim() || '';
-      const abstractEn = entry.querySelector('abstract > en')?.textContent?.trim() || '';
-      const abstract = abstractJa || abstractEn || '';
+      const year = item['prism:publicationDate'] || '';
+      const journal = item['prism:publicationName'] || '';
+      const link = item['@id'] || '';
 
-      // 著者: <author><ja><name>...</name></ja></author>
-      const authorJaNames = entry.querySelectorAll('author > ja > name');
-      const authorEnNames = entry.querySelectorAll('author > en > name');
-      const authorSrc = authorJaNames.length > 0 ? authorJaNames : authorEnNames;
-      let authors = Array.from(authorSrc).map(a => a.textContent.trim());
-      const authorStr = authors.length > 3
-        ? authors.slice(0, 3).join(', ') + ` 他${authors.length - 3}名`
-        : authors.join(', ') || '著者不明';
+      // DOI を探す
+      let doi = '';
+      const ids = item['dc:identifier'] || [];
+      if (Array.isArray(ids)) {
+        const doiObj = ids.find(id => id['@type'] === 'cir:DOI' || (typeof id === 'string' && id.startsWith('10.')));
+        if (doiObj) doi = doiObj['@value'] || doiObj;
+      }
 
-      const year = entry.querySelector('pubyear')?.textContent?.trim() || '';
-      const journal = entry.querySelector('material_title > ja')?.textContent?.trim()
-        || entry.querySelector('material_title > en')?.textContent?.trim() || '';
-      const doi = entry.querySelector('prism\\:doi, doi')?.textContent?.trim() || '';
-      const linkJa = entry.querySelector('article_link > ja')?.textContent?.trim() || '';
-      const linkEn = entry.querySelector('article_link > en')?.textContent?.trim() || '';
-      const linkFallback = entry.querySelector('link')?.getAttribute('href') || '';
-      const link = linkJa || linkEn || linkFallback || (doi ? `https://doi.org/${doi}` : '');
-
-      const keywords = [];
+      // description（あれば要約として使用）
+      const abstract = item['description'] || item['dc:description'] || '';
 
       papers.push({
-        source: 'jstage', title, titleEn, abstract, authorStr, year, journal, doi,
-        keywords: keywords.slice(0, 8),
-        mesh: [], pubTypes: [],
-        url: link,
-        isJapanese: !!titleJa || !!abstractJa
+        source: 'cinii', title, abstract, authorStr, year, journal, doi,
+        keywords: [], mesh: [], pubTypes: [],
+        url: link
       });
     }
-    return { total: Number(totalStr), papers };
+    return { total: Number(total), papers };
   } catch (e) {
-    console.error('J-STAGE検索エラー:', e);
+    console.error('CiNii検索エラー:', e);
     return { total: 0, papers: [] };
   }
 }
@@ -361,8 +345,8 @@ function renderPaperCard(paper, container) {
   const card = document.createElement('div');
   card.className = 'paper';
 
-  const badgeClass = paper.source === 'pubmed' ? 'badge-pubmed' : 'badge-jstage';
-  const badgeLabel = paper.source === 'pubmed' ? 'PubMed' : 'J-STAGE';
+  const badgeClass = paper.source === 'pubmed' ? 'badge-pubmed' : 'badge-cinii';
+  const badgeLabel = paper.source === 'pubmed' ? 'PubMed' : 'CiNii';
 
   // Abstractがなければ自動生成
   let abstract, isAutoGenerated = false;
@@ -392,7 +376,7 @@ function renderPaperCard(paper, container) {
       sourceHtml = `情報ソース: <a href="${paper.url}" target="_blank">PubMed (PMID: ${paper.pmid})</a>`;
       if (paper.doi) sourceHtml += ` | <a href="https://doi.org/${paper.doi}" target="_blank">DOI: ${escapeHtml(paper.doi)}</a>`;
     } else {
-      sourceHtml = `情報ソース: <a href="${paper.url}" target="_blank">J-STAGE</a>`;
+      sourceHtml = `情報ソース: <a href="${paper.url}" target="_blank">CiNii Research</a>`;
       if (paper.doi) sourceHtml += ` | <a href="https://doi.org/${paper.doi}" target="_blank">DOI: ${escapeHtml(paper.doi)}</a>`;
     }
 
@@ -488,7 +472,7 @@ function renderOverviewCard(query, allPapers, pubmedCount, jstageCount, containe
 
   const srcParts = [];
   if (pubmedCount > 0) srcParts.push(`PubMed ${pubmedCount}件`);
-  if (jstageCount > 0) srcParts.push(`J-STAGE ${jstageCount}件`);
+  if (jstageCount > 0) srcParts.push(`CiNii Research ${jstageCount}件`);
   lines.push(`検索ソース: ${srcParts.join('、')}から取得しました。`);
 
   if (typeStr) lines.push(`研究タイプ: ${typeStr}が含まれています。`);
@@ -500,7 +484,7 @@ function renderOverviewCard(query, allPapers, pubmedCount, jstageCount, containe
   lines.push('--- 各論文の概要 ---');
   allPapers.forEach((p, i) => {
     const yearStr = p.year ? `(${p.year})` : '';
-    const src = p.source === 'pubmed' ? 'PubMed' : 'J-STAGE';
+    const src = p.source === 'pubmed' ? 'PubMed' : 'CiNii';
     lines.push(`${i + 1}. ${p.title} ${yearStr} [${src}]`);
   });
 
@@ -513,7 +497,7 @@ function renderOverviewCard(query, allPapers, pubmedCount, jstageCount, containe
       if (p.doi) s += ` / <a href="https://doi.org/${p.doi}" target="_blank">DOI: ${p.doi}</a>`;
       return s;
     } else {
-      let s = `<a href="${p.url}" target="_blank">J-STAGE</a>`;
+      let s = `<a href="${p.url}" target="_blank">CiNii Research</a>`;
       if (p.doi) s += ` / <a href="https://doi.org/${p.doi}" target="_blank">DOI: ${p.doi}</a>`;
       return s;
     }
@@ -573,7 +557,7 @@ form.addEventListener('submit', async (e) => {
 
   searchBtn.disabled = true;
   searchBtn.textContent = '検索中...';
-  resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + J-STAGE を同時検索中...</div>';
+  resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + CiNii を同時検索中...</div>';
   translatedQueryDiv.style.display = 'none';
 
   try {
@@ -590,17 +574,17 @@ form.addEventListener('submit', async (e) => {
       }
     }
 
-    resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + J-STAGE を同時検索中...</div>';
+    resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + CiNii を同時検索中...</div>';
 
     // PubMed と J-STAGE を並列検索（片方失敗しても止まらない）
     const [pubmedResult, jstageResult] = await Promise.all([
       searchPubMed(pubmedQuery, limit, sort).catch(e => { console.error('PubMed:', e); return { total: 0, papers: [] }; }),
-      searchJStage(query, limit, sort).catch(e => { console.error('J-STAGE:', e); return { total: 0, papers: [] }; })
+      searchCiNii(query, limit, sort).catch(e => { console.error('CiNii:', e); return { total: 0, papers: [] }; })
     ]);
 
     const pubmedPapers = pubmedResult.papers;
-    const jstagePapers = jstageResult.papers;
-    const allPapers = [...pubmedPapers, ...jstagePapers];
+    const ciniiPapers = jstageResult.papers;
+    const allPapers = [...pubmedPapers, ...ciniiPapers];
 
     if (allPapers.length === 0) {
       resultsDiv.innerHTML = '<div class="status">該当する論文が見つかりませんでした。<br>キーワードを変更してお試しください。</div>';
@@ -615,17 +599,17 @@ form.addEventListener('submit', async (e) => {
     tabs.innerHTML = `
       <div class="source-tab active" data-tab="all">すべて<span class="count">${allPapers.length}</span></div>
       <div class="source-tab" data-tab="pubmed">PubMed<span class="count">${pubmedPapers.length}</span></div>
-      <div class="source-tab" data-tab="jstage">J-STAGE<span class="count">${jstagePapers.length}</span></div>
+      <div class="source-tab" data-tab="cinii">CiNii<span class="count">${ciniiPapers.length}</span></div>
     `;
     resultsDiv.appendChild(tabs);
 
     const statusDiv = document.createElement('div');
     statusDiv.className = 'status';
-    statusDiv.textContent = `PubMed: ${pubmedResult.total.toLocaleString()}件中${pubmedPapers.length}件 / J-STAGE: ${jstageResult.total.toLocaleString()}件中${jstagePapers.length}件 を表示`;
+    statusDiv.textContent = `PubMed: ${pubmedResult.total.toLocaleString()}件中${pubmedPapers.length}件 / CiNii: ${jstageResult.total.toLocaleString()}件中${ciniiPapers.length}件 を表示`;
     resultsDiv.appendChild(statusDiv);
 
     // 総合要約カード（一番上に表示）
-    renderOverviewCard(query, allPapers, pubmedPapers.length, jstagePapers.length, resultsDiv);
+    renderOverviewCard(query, allPapers, pubmedPapers.length, ciniiPapers.length, resultsDiv);
 
     // 各タブの論文リスト
     const allList = document.createElement('div');
@@ -640,11 +624,11 @@ form.addEventListener('submit', async (e) => {
     pubmedPapers.forEach(p => renderPaperCard(p, pubmedList));
     resultsDiv.appendChild(pubmedList);
 
-    const jstageList = document.createElement('div');
-    jstageList.className = 'paper-list';
-    jstageList.dataset.tab = 'jstage';
-    jstagePapers.forEach(p => renderPaperCard(p, jstageList));
-    resultsDiv.appendChild(jstageList);
+    const ciniiList = document.createElement('div');
+    ciniiList.className = 'paper-list';
+    ciniiList.dataset.tab = 'cinii';
+    ciniiPapers.forEach(p => renderPaperCard(p, ciniiList));
+    resultsDiv.appendChild(ciniiList);
 
     // タブ切り替え
     tabs.addEventListener('click', (e) => {
