@@ -9,19 +9,28 @@
   body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif; background: #f5f7fa; color: #333; min-height: 100vh; }
   .header { background: linear-gradient(135deg, #43b89c 0%, #3a7bd5 100%); padding: 40px 20px; text-align: center; color: #fff; }
   .header h1 { font-size: 1.8rem; margin-bottom: 8px; }
-  .header p { font-size: 0.9rem; opacity: 0.85; }
+  .header p { font-size: 0.9rem; opacity: 0.85; line-height: 1.5; }
   .search-box { max-width: 640px; margin: -24px auto 0; padding: 0 16px; position: relative; z-index: 1; }
   .search-box form { display: flex; gap: 8px; }
   .search-box input { flex: 1; padding: 14px 18px; border: none; border-radius: 8px; font-size: 1rem; box-shadow: 0 4px 16px rgba(0,0,0,0.12); outline: none; }
-  .search-box button { padding: 14px 24px; border: none; border-radius: 8px; background: #43b89c; color: #fff; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.12); transition: background 0.2s; font-weight: 600; }
+  .search-box button { padding: 14px 24px; border: none; border-radius: 8px; background: #43b89c; color: #fff; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.12); transition: background 0.2s; font-weight: 600; white-space: nowrap; }
   .search-box button:hover { background: #3aa88e; }
   .search-box button:disabled { background: #aaa; cursor: wait; }
   .options { max-width: 640px; margin: 16px auto 0; padding: 0 16px; display: flex; gap: 12px; align-items: center; font-size: 0.85rem; color: #666; flex-wrap: wrap; }
   .options select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+  .translated-query { max-width: 640px; margin: 12px auto 0; padding: 0 16px; font-size: 0.82rem; color: #888; }
+  .translated-query span { background: #eef7f4; padding: 2px 8px; border-radius: 4px; color: #43b89c; }
   .results { max-width: 800px; margin: 32px auto; padding: 0 16px; }
+  .source-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .source-tab { padding: 8px 16px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.85rem; color: #666; transition: all 0.2s; }
+  .source-tab.active { background: #43b89c; color: #fff; border-color: #43b89c; }
+  .source-tab .count { font-weight: 700; margin-left: 4px; }
   .status { text-align: center; padding: 20px; color: #888; font-size: 0.95rem; }
   .paper { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: box-shadow 0.2s; }
   .paper:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .paper-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; font-weight: 600; }
+  .badge-pubmed { background: #e3f0ff; color: #3a7bd5; }
+  .badge-jstage { background: #fff3e0; color: #e67e22; }
   .paper-title { font-size: 1.1rem; font-weight: 700; color: #2d3748; margin-bottom: 8px; }
   .paper-title a { color: inherit; text-decoration: none; }
   .paper-title a:hover { color: #43b89c; }
@@ -31,28 +40,31 @@
   .paper-abstract { font-size: 0.92rem; line-height: 1.7; color: #555; margin-bottom: 12px; }
   .paper-abstract.collapsed { max-height: 120px; overflow: hidden; position: relative; }
   .paper-abstract.collapsed::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, #fff); }
-  .toggle-btn { background: none; border: none; color: #43b89c; cursor: pointer; font-size: 0.85rem; margin-bottom: 8px; }
+  .toggle-btn { background: none; border: none; color: #43b89c; cursor: pointer; font-size: 0.85rem; margin-bottom: 8px; padding: 0; }
   .paper-source { font-size: 0.8rem; color: #43b89c; }
   .paper-source a { color: #43b89c; text-decoration: none; }
   .paper-source a:hover { text-decoration: underline; }
   .paper-keywords { margin-bottom: 10px; }
   .tag { display: inline-block; background: #e8f5f1; color: #43b89c; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px 4px 2px 0; }
-  .footer { text-align: center; padding: 32px 16px; font-size: 0.78rem; color: #aaa; }
+  .translate-notice { font-size: 0.78rem; color: #999; margin-bottom: 6px; font-style: italic; }
+  .footer { text-align: center; padding: 32px 16px; font-size: 0.78rem; color: #aaa; line-height: 1.8; }
   .footer a { color: #43b89c; text-decoration: none; }
   .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #ddd; border-top-color: #43b89c; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .paper-list { display: none; }
+  .paper-list.active { display: block; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>Medical Paper Finder</h1>
-  <p>PubMedから医療論文を検索し、要約とソースを表示します</p>
+  <h1>医療論文サーチ</h1>
+  <p>日本語で検索 → PubMed（世界）+ J-STAGE（日本）を同時検索<br>英語論文は自動翻訳して表示します</p>
 </div>
 
 <div class="search-box">
   <form id="searchForm">
-    <input type="text" id="query" placeholder="例: diabetes treatment, COVID-19 vaccine efficacy..." required>
+    <input type="text" id="query" placeholder="例: 糖尿病 治療、高血圧 予防、がん 免疫療法..." required>
     <button type="submit" id="searchBtn">検索</button>
   </form>
 </div>
@@ -67,149 +79,73 @@
   </label>
   <label>並び順:
     <select id="sort">
-      <option value="relevance">関連度</option>
+      <option value="relevance">関連度順</option>
       <option value="date">新しい順</option>
     </select>
   </label>
 </div>
+
+<div class="translated-query" id="translatedQuery" style="display:none"></div>
 
 <div class="results" id="results">
   <div class="status">キーワードを入力して医療論文を検索してください</div>
 </div>
 
 <div class="footer">
-  情報ソース: <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank">PubMed / NCBI</a> (National Library of Medicine)
+  情報ソース: <a href="https://pubmed.ncbi.nlm.nih.gov/" target="_blank">PubMed / NCBI</a> (米国国立医学図書館)
+  | <a href="https://www.jstage.jst.go.jp/" target="_blank">J-STAGE</a> (科学技術振興機構)
+  <br>翻訳: Google Translate
 </div>
 
 <script>
 const form = document.getElementById('searchForm');
 const resultsDiv = document.getElementById('results');
 const searchBtn = document.getElementById('searchBtn');
+const translatedQueryDiv = document.getElementById('translatedQuery');
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const query = document.getElementById('query').value.trim();
-  if (!query) return;
+const labelMap = {
+  'BACKGROUND': '背景', 'OBJECTIVE': '目的', 'OBJECTIVES': '目的',
+  'AIM': '目的', 'AIMS': '目的', 'PURPOSE': '目的',
+  'METHODS': '方法', 'METHOD': '方法', 'MATERIALS AND METHODS': '材料と方法',
+  'DESIGN': '研究デザイン', 'SETTING': '研究設定',
+  'PATIENTS': '対象患者', 'PARTICIPANTS': '参加者', 'SUBJECTS': '対象', 'POPULATION': '対象集団',
+  'INTERVENTIONS': '介入', 'INTERVENTION': '介入',
+  'MEASUREMENTS': '測定', 'MAIN OUTCOME MEASURES': '主要評価項目', 'OUTCOME MEASURES': '評価項目',
+  'RESULTS': '結果', 'FINDINGS': '所見',
+  'CONCLUSIONS': '結論', 'CONCLUSION': '結論',
+  'INTERPRETATION': '解釈', 'SIGNIFICANCE': '意義', 'IMPLICATIONS': '示唆', 'LIMITATIONS': '限界',
+  'TRIAL REGISTRATION': '試験登録', 'FUNDING': '資金源',
+  'CONTEXT': '背景', 'DATA SOURCES': 'データソース', 'STUDY SELECTION': '研究選択',
+  'DATA EXTRACTION': 'データ抽出', 'INTRODUCTION': 'はじめに', 'DISCUSSION': '考察',
+  'SUMMARY': '要約', 'UNASSIGNED': '',
+};
 
-  const limit = document.getElementById('limit').value;
-  const sort = document.getElementById('sort').value;
+function translateLabel(label) {
+  if (!label) return '';
+  return labelMap[label.toUpperCase()] || label;
+}
 
-  searchBtn.disabled = true;
-  searchBtn.textContent = '検索中...';
-  resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMedを検索中...</div>';
+function isJapanese(text) {
+  const japaneseChars = (text.match(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g) || []).length;
+  return japaneseChars > text.length * 0.1;
+}
 
+function hasJapanese(text) {
+  return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(text);
+}
+
+async function translateText(text, sourceLang, targetLang) {
   try {
-    // Step 1: ESearch - 論文IDを検索
-    const sortParam = sort === 'date' ? '&sort=date' : '&sort=relevance';
-    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${sortParam}`;
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) throw new Error(`検索エラー: ${searchRes.status}`);
-    const searchData = await searchRes.json();
-
-    const ids = searchData.esearchresult.idlist;
-    const totalCount = searchData.esearchresult.count;
-
-    if (!ids || ids.length === 0) {
-      resultsDiv.innerHTML = '<div class="status">該当する論文が見つかりませんでした</div>';
-      return;
-    }
-
-    resultsDiv.innerHTML = `<div class="status"><span class="loading"></span>${Number(totalCount).toLocaleString()}件中 ${ids.length}件の詳細を取得中...</div>`;
-
-    // Step 2: EFetch - 論文詳細を取得
-    const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(',')}&retmode=xml`;
-    const fetchRes = await fetch(fetchUrl);
-    if (!fetchRes.ok) throw new Error(`詳細取得エラー: ${fetchRes.status}`);
-    const xmlText = await fetchRes.text();
-
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, 'text/xml');
-    const articles = xml.querySelectorAll('PubmedArticle');
-
-    resultsDiv.innerHTML = `<div class="status">${Number(totalCount).toLocaleString()}件中 ${articles.length}件を表示</div>`;
-
-    articles.forEach(article => {
-      const pmid = getText(article, 'PMID');
-      const title = getText(article, 'ArticleTitle') || '(タイトルなし)';
-      const abstractTexts = article.querySelectorAll('AbstractText');
-      let abstract = '';
-      if (abstractTexts.length > 0) {
-        abstract = Array.from(abstractTexts).map(node => {
-          const label = node.getAttribute('Label');
-          const text = node.textContent;
-          return label ? `【${label}】${text}` : text;
-        }).join('\n\n');
-      } else {
-        abstract = '（Abstractなし）';
-      }
-
-      // 著者
-      const authorNodes = article.querySelectorAll('Author');
-      const authors = Array.from(authorNodes).map(a => {
-        const last = getText(a, 'LastName');
-        const fore = getText(a, 'ForeName');
-        return [last, fore].filter(Boolean).join(' ');
-      }).filter(Boolean);
-      const authorStr = authors.length > 3
-        ? authors.slice(0, 3).join(', ') + ` 他${authors.length - 3}名`
-        : authors.join(', ') || '不明';
-
-      // 年
-      const year = getText(article, 'PubDate > Year')
-        || getText(article, 'MedlineDate')
-        || '不明';
-
-      // ジャーナル
-      const journal = getText(article, 'Journal > Title') || getText(article, 'ISOAbbreviation') || '';
-
-      // DOI
-      const eidNodes = article.querySelectorAll('ArticleId');
-      let doi = '';
-      eidNodes.forEach(n => { if (n.getAttribute('IdType') === 'doi') doi = n.textContent; });
-
-      // キーワード
-      const kwNodes = article.querySelectorAll('Keyword');
-      const keywords = Array.from(kwNodes).map(k => k.textContent).slice(0, 8);
-
-      // MeSH
-      const meshNodes = article.querySelectorAll('MeshHeading > DescriptorName');
-      const mesh = Array.from(meshNodes).map(m => m.textContent).slice(0, 6);
-
-      const pubmedUrl = `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
-
-      const card = document.createElement('div');
-      card.className = 'paper';
-
-      const hasAbstract = abstract !== '（Abstractなし）';
-      const isLong = abstract.length > 300;
-
-      card.innerHTML = `
-        <div class="paper-title"><a href="${pubmedUrl}" target="_blank">${escapeHtml(title)}</a></div>
-        <div class="paper-meta">
-          <span>${escapeHtml(authorStr)}</span>
-          <span>${escapeHtml(String(year))}年</span>
-          <span>PMID: ${pmid}</span>
-        </div>
-        ${journal ? `<div class="paper-journal">${escapeHtml(journal)}</div>` : ''}
-        ${keywords.length > 0 ? '<div class="paper-keywords">' + keywords.map(k => `<span class="tag">${escapeHtml(k)}</span>`).join('') + '</div>' : ''}
-        ${mesh.length > 0 && keywords.length === 0 ? '<div class="paper-keywords">' + mesh.map(m => `<span class="tag">${escapeHtml(m)}</span>`).join('') + '</div>' : ''}
-        <div class="paper-abstract ${isLong ? 'collapsed' : ''}" style="white-space:pre-line">${escapeHtml(abstract)}</div>
-        ${isLong ? '<button class="toggle-btn" onclick="toggleAbstract(this)">全文を表示</button>' : ''}
-        <div class="paper-source">
-          出典: <a href="${pubmedUrl}" target="_blank">PubMed (PMID: ${pmid})</a>
-          ${doi ? ` | <a href="https://doi.org/${doi}" target="_blank">DOI: ${escapeHtml(doi)}</a>` : ''}
-        </div>
-      `;
-      resultsDiv.appendChild(card);
-    });
-
-  } catch (err) {
-    resultsDiv.innerHTML = `<div class="status">エラーが発生しました: ${escapeHtml(err.message)}<br>しばらく待ってから再度お試しください。</div>`;
-  } finally {
-    searchBtn.disabled = false;
-    searchBtn.textContent = '検索';
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('翻訳エラー');
+    const data = await res.json();
+    return data[0].map(item => item[0]).join('');
+  } catch (e) {
+    console.error('翻訳失敗:', e);
+    return null;
   }
-});
+}
 
 function getText(parent, selector) {
   const el = parent.querySelector(selector);
@@ -227,6 +163,304 @@ function toggleAbstract(btn) {
   abs.classList.toggle('collapsed');
   btn.textContent = abs.classList.contains('collapsed') ? '全文を表示' : '折りたたむ';
 }
+
+// ===== PubMed検索 =====
+async function searchPubMed(query, limit, sort) {
+  const sortParam = sort === 'date' ? '&sort=date' : '&sort=relevance';
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(query)}&retmax=${limit}&retmode=json${sortParam}`;
+  const searchRes = await fetch(searchUrl);
+  if (!searchRes.ok) throw new Error(`PubMed検索エラー: ${searchRes.status}`);
+  const searchData = await searchRes.json();
+
+  const ids = searchData.esearchresult.idlist;
+  const totalCount = searchData.esearchresult.count;
+  if (!ids || ids.length === 0) return { total: 0, papers: [] };
+
+  const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(',')}&retmode=xml`;
+  const fetchRes = await fetch(fetchUrl);
+  if (!fetchRes.ok) throw new Error(`PubMed詳細取得エラー: ${fetchRes.status}`);
+  const xmlText = await fetchRes.text();
+
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlText, 'text/xml');
+  const articles = xml.querySelectorAll('PubmedArticle');
+
+  const papers = [];
+  for (const article of articles) {
+    const pmid = getText(article, 'PMID');
+    const title = getText(article, 'ArticleTitle') || '(タイトルなし)';
+    const abstractTexts = article.querySelectorAll('AbstractText');
+    let abstract = '';
+    if (abstractTexts.length > 0) {
+      abstract = Array.from(abstractTexts).map(node => {
+        const label = node.getAttribute('Label');
+        const text = node.textContent;
+        const jaLabel = translateLabel(label);
+        return jaLabel ? `【${jaLabel}】${text}` : text;
+      }).join('\n\n');
+    }
+
+    const authorNodes = article.querySelectorAll('Author');
+    const authors = Array.from(authorNodes).map(a => {
+      const last = getText(a, 'LastName');
+      const fore = getText(a, 'ForeName');
+      return [last, fore].filter(Boolean).join(' ');
+    }).filter(Boolean);
+    const authorStr = authors.length > 3
+      ? authors.slice(0, 3).join(', ') + ` 他${authors.length - 3}名`
+      : authors.join(', ') || '著者不明';
+
+    const year = getText(article, 'PubDate > Year') || getText(article, 'MedlineDate') || '';
+    const journal = getText(article, 'Journal > Title') || getText(article, 'ISOAbbreviation') || '';
+
+    const eidNodes = article.querySelectorAll('ArticleId');
+    let doi = '';
+    eidNodes.forEach(n => { if (n.getAttribute('IdType') === 'doi') doi = n.textContent; });
+
+    const kwNodes = article.querySelectorAll('Keyword');
+    const keywords = Array.from(kwNodes).map(k => k.textContent).slice(0, 8);
+    const meshNodes = article.querySelectorAll('MeshHeading > DescriptorName');
+    const mesh = Array.from(meshNodes).map(m => m.textContent).slice(0, 6);
+
+    papers.push({
+      source: 'pubmed', pmid, title, abstract, authorStr, year, journal, doi,
+      keywords: keywords.length > 0 ? keywords : mesh,
+      url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+    });
+  }
+  return { total: Number(totalCount), papers };
+}
+
+// ===== J-STAGE検索 =====
+async function searchJStage(query, limit, sort) {
+  try {
+    const sortParam = sort === 'date' ? '&sortflg=2' : '&sortflg=1';
+    const url = `https://api.jstage.jst.go.jp/searchapi/do?service=3&keyword=${encodeURIComponent(query)}&count=${limit}${sortParam}`;
+    const res = await fetch(url);
+    if (!res.ok) return { total: 0, papers: [] };
+    const xmlText = await res.text();
+
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, 'text/xml');
+
+    const totalStr = xml.querySelector('result > total_results')?.textContent || '0';
+    const entries = xml.querySelectorAll('entry');
+
+    const papers = [];
+    for (const entry of entries) {
+      const titleJa = entry.querySelector('article_title[lang="ja"]')?.textContent || '';
+      const titleEn = entry.querySelector('article_title[lang="en"]')?.textContent || '';
+      const title = titleJa || titleEn || '(タイトルなし)';
+
+      const abstractJa = entry.querySelector('abstract[lang="ja"]')?.textContent || '';
+      const abstractEn = entry.querySelector('abstract[lang="en"]')?.textContent || '';
+      const abstract = abstractJa || abstractEn || '';
+
+      const authorNodes = entry.querySelectorAll('creator[lang="ja"]');
+      const authorNodesEn = entry.querySelectorAll('creator[lang="en"]');
+      let authors = Array.from(authorNodes.length > 0 ? authorNodes : authorNodesEn).map(a => a.textContent);
+      const authorStr = authors.length > 3
+        ? authors.slice(0, 3).join(', ') + ` 他${authors.length - 3}名`
+        : authors.join(', ') || '著者不明';
+
+      const year = entry.querySelector('pubyear')?.textContent || '';
+      const journal = entry.querySelector('material_title[lang="ja"]')?.textContent
+        || entry.querySelector('material_title[lang="en"]')?.textContent || '';
+      const doi = entry.querySelector('doi')?.textContent || '';
+      const link = entry.querySelector('link')?.getAttribute('href')
+        || (doi ? `https://doi.org/${doi}` : '');
+
+      const keywords = [];
+      entry.querySelectorAll('keyword[lang="ja"]').forEach(k => keywords.push(k.textContent));
+      if (keywords.length === 0) {
+        entry.querySelectorAll('keyword[lang="en"]').forEach(k => keywords.push(k.textContent));
+      }
+
+      papers.push({
+        source: 'jstage', title, titleEn, abstract, authorStr, year, journal, doi,
+        keywords: keywords.slice(0, 8),
+        url: link,
+        isJapanese: !!titleJa || !!abstractJa
+      });
+    }
+    return { total: Number(totalStr), papers };
+  } catch (e) {
+    console.error('J-STAGE検索エラー:', e);
+    return { total: 0, papers: [] };
+  }
+}
+
+// ===== カード描画 =====
+function renderPaperCard(paper, container) {
+  const card = document.createElement('div');
+  card.className = 'paper';
+
+  const badgeClass = paper.source === 'pubmed' ? 'badge-pubmed' : 'badge-jstage';
+  const badgeLabel = paper.source === 'pubmed' ? 'PubMed' : 'J-STAGE';
+  const abstract = paper.abstract || '（要約なし — 原文をご確認ください）';
+  const hasAbstract = !!paper.abstract;
+  const needsTranslation = hasAbstract && !isJapanese(paper.abstract);
+
+  let translatedTitle = '';
+  let translatedAbstract = '';
+  let isTranslating = needsTranslation;
+
+  function render() {
+    const displayTitle = translatedTitle || paper.title;
+    const displayAbstract = translatedAbstract || abstract;
+    const showOriginalTitle = translatedTitle && translatedTitle !== paper.title;
+    const isLong = displayAbstract.length > 300;
+
+    let sourceHtml = '';
+    if (paper.source === 'pubmed') {
+      sourceHtml = `情報ソース: <a href="${paper.url}" target="_blank">PubMed (PMID: ${paper.pmid})</a>`;
+      if (paper.doi) sourceHtml += ` | <a href="https://doi.org/${paper.doi}" target="_blank">DOI: ${escapeHtml(paper.doi)}</a>`;
+    } else {
+      sourceHtml = `情報ソース: <a href="${paper.url}" target="_blank">J-STAGE</a>`;
+      if (paper.doi) sourceHtml += ` | <a href="https://doi.org/${paper.doi}" target="_blank">DOI: ${escapeHtml(paper.doi)}</a>`;
+    }
+
+    card.innerHTML = `
+      <span class="paper-badge ${badgeClass}">${badgeLabel}</span>
+      <div class="paper-title"><a href="${paper.url}" target="_blank">${escapeHtml(displayTitle)}</a></div>
+      ${showOriginalTitle ? `<div style="font-size:0.82rem;color:#999;margin-bottom:8px">原題: ${escapeHtml(paper.title)}</div>` : ''}
+      <div class="paper-meta">
+        <span>${escapeHtml(paper.authorStr)}</span>
+        ${paper.year ? `<span>${escapeHtml(paper.year)}年</span>` : ''}
+        ${paper.pmid ? `<span>PMID: ${paper.pmid}</span>` : ''}
+      </div>
+      ${paper.journal ? `<div class="paper-journal">${escapeHtml(paper.journal)}</div>` : ''}
+      ${paper.keywords.length > 0 ? '<div class="paper-keywords">' + paper.keywords.map(k => `<span class="tag">${escapeHtml(k)}</span>`).join('') + '</div>' : ''}
+      ${translatedAbstract ? '<div class="translate-notice">Google Translateによる自動翻訳</div>' : ''}
+      ${isTranslating ? '<div class="translate-notice"><span class="loading" style="width:14px;height:14px;border-width:2px"></span>翻訳中...</div>' : ''}
+      <div class="paper-abstract ${isLong ? 'collapsed' : ''}" style="white-space:pre-line">${escapeHtml(displayAbstract)}</div>
+      ${isLong ? `<button class="toggle-btn" onclick="toggleAbstract(this)">全文を表示</button>` : ''}
+      <div class="paper-source">${sourceHtml}</div>
+    `;
+  }
+
+  render();
+  container.appendChild(card);
+
+  if (needsTranslation) {
+    (async () => {
+      try {
+        const [tTitle, tAbstract] = await Promise.all([
+          isJapanese(paper.title) ? null : translateText(paper.title, 'en', 'ja'),
+          translateText(paper.abstract, 'en', 'ja')
+        ]);
+        if (tTitle) translatedTitle = tTitle;
+        if (tAbstract) translatedAbstract = tAbstract;
+      } catch (e) {
+        console.error('翻訳失敗:', e);
+      } finally {
+        isTranslating = false;
+        render();
+      }
+    })();
+  }
+}
+
+// ===== メイン検索 =====
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const query = document.getElementById('query').value.trim();
+  if (!query) return;
+
+  const limit = document.getElementById('limit').value;
+  const sort = document.getElementById('sort').value;
+
+  searchBtn.disabled = true;
+  searchBtn.textContent = '検索中...';
+  resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + J-STAGE を同時検索中...</div>';
+  translatedQueryDiv.style.display = 'none';
+
+  try {
+    // 日本語が含まれていたら英語に翻訳
+    let pubmedQuery = query;
+    let showTranslation = false;
+    if (hasJapanese(query)) {
+      const translated = await translateText(query, 'ja', 'en');
+      if (translated) {
+        pubmedQuery = translated;
+        showTranslation = true;
+        translatedQueryDiv.innerHTML = `PubMed検索キーワード（自動翻訳）: <span>${escapeHtml(pubmedQuery)}</span>`;
+        translatedQueryDiv.style.display = 'block';
+      }
+    }
+
+    resultsDiv.innerHTML = '<div class="status"><span class="loading"></span>PubMed + J-STAGE を同時検索中...</div>';
+
+    // PubMed と J-STAGE を並列検索
+    const [pubmedResult, jstageResult] = await Promise.all([
+      searchPubMed(pubmedQuery, limit, sort),
+      searchJStage(query, limit, sort)
+    ]);
+
+    const pubmedPapers = pubmedResult.papers;
+    const jstagePapers = jstageResult.papers;
+    const allPapers = [...pubmedPapers, ...jstagePapers];
+
+    if (allPapers.length === 0) {
+      resultsDiv.innerHTML = '<div class="status">該当する論文が見つかりませんでした。<br>キーワードを変更してお試しください。</div>';
+      return;
+    }
+
+    // タブ + 結果表示
+    resultsDiv.innerHTML = '';
+
+    const tabs = document.createElement('div');
+    tabs.className = 'source-tabs';
+    tabs.innerHTML = `
+      <div class="source-tab active" data-tab="all">すべて<span class="count">${allPapers.length}</span></div>
+      <div class="source-tab" data-tab="pubmed">PubMed<span class="count">${pubmedPapers.length}</span></div>
+      <div class="source-tab" data-tab="jstage">J-STAGE<span class="count">${jstagePapers.length}</span></div>
+    `;
+    resultsDiv.appendChild(tabs);
+
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'status';
+    statusDiv.textContent = `PubMed: ${pubmedResult.total.toLocaleString()}件中${pubmedPapers.length}件 / J-STAGE: ${jstageResult.total.toLocaleString()}件中${jstagePapers.length}件 を表示`;
+    resultsDiv.appendChild(statusDiv);
+
+    // 各タブの論文リスト
+    const allList = document.createElement('div');
+    allList.className = 'paper-list active';
+    allList.dataset.tab = 'all';
+    allPapers.forEach(p => renderPaperCard(p, allList));
+    resultsDiv.appendChild(allList);
+
+    const pubmedList = document.createElement('div');
+    pubmedList.className = 'paper-list';
+    pubmedList.dataset.tab = 'pubmed';
+    pubmedPapers.forEach(p => renderPaperCard(p, pubmedList));
+    resultsDiv.appendChild(pubmedList);
+
+    const jstageList = document.createElement('div');
+    jstageList.className = 'paper-list';
+    jstageList.dataset.tab = 'jstage';
+    jstagePapers.forEach(p => renderPaperCard(p, jstageList));
+    resultsDiv.appendChild(jstageList);
+
+    // タブ切り替え
+    tabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('.source-tab');
+      if (!tab) return;
+      const target = tab.dataset.tab;
+      tabs.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      resultsDiv.querySelectorAll('.paper-list').forEach(l => {
+        l.classList.toggle('active', l.dataset.tab === target);
+      });
+    });
+
+  } catch (err) {
+    resultsDiv.innerHTML = `<div class="status">エラーが発生しました: ${escapeHtml(err.message)}<br>しばらく待ってから再度お試しください。</div>`;
+  } finally {
+    searchBtn.disabled = false;
+    searchBtn.textContent = '検索';
+  }
+});
 </script>
 </body>
 </html>
