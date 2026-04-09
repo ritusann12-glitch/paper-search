@@ -388,7 +388,7 @@ function renderPaperCard(paper, container) {
     card.innerHTML = `
       <span class="paper-badge ${badgeClass}">${badgeLabel}</span>
       <div class="paper-title"><a href="${paper.url}" target="_blank">${escapeHtml(displayTitle)}</a></div>
-      ${showOriginalTitle ? `<div style="font-size:0.82rem;color:#999;margin-bottom:8px">原題: ${escapeHtml(paper.title)}</div>` : ''}
+      ${showOriginalTitle ? `<div style="font-size:0.88rem;color:#666;margin-bottom:8px;line-height:1.5">原題: ${escapeHtml(paper.title)}</div>` : ''}
       <div class="paper-meta">
         <span>${escapeHtml(paper.authorStr)}</span>
         ${paper.year ? `<span>${escapeHtml(paper.year)}年</span>` : ''}
