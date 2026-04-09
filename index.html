@@ -249,38 +249,40 @@ async function searchJStage(query, limit, sort) {
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlText, 'text/xml');
 
-    const totalStr = xml.querySelector('result > total_results')?.textContent || '0';
+    const totalStr = xml.querySelector('opensearch\\:totalResults, totalResults')?.textContent || '0';
     const entries = xml.querySelectorAll('entry');
 
     const papers = [];
     for (const entry of entries) {
-      const titleJa = entry.querySelector('article_title[lang="ja"]')?.textContent || '';
-      const titleEn = entry.querySelector('article_title[lang="en"]')?.textContent || '';
-      const title = titleJa || titleEn || '(タイトルなし)';
+      // J-STAGE XMLは <article_title><ja>...</ja><en>...</en></article_title> 構造
+      const titleJa = entry.querySelector('article_title > ja')?.textContent?.trim() || '';
+      const titleEn = entry.querySelector('article_title > en')?.textContent?.trim() || '';
+      const titleFallback = entry.querySelector('title')?.textContent?.trim() || '';
+      const title = titleJa || titleFallback || titleEn || '(タイトルなし)';
 
-      const abstractJa = entry.querySelector('abstract[lang="ja"]')?.textContent || '';
-      const abstractEn = entry.querySelector('abstract[lang="en"]')?.textContent || '';
+      const abstractJa = entry.querySelector('abstract > ja')?.textContent?.trim() || '';
+      const abstractEn = entry.querySelector('abstract > en')?.textContent?.trim() || '';
       const abstract = abstractJa || abstractEn || '';
 
-      const authorNodes = entry.querySelectorAll('creator[lang="ja"]');
-      const authorNodesEn = entry.querySelectorAll('creator[lang="en"]');
-      let authors = Array.from(authorNodes.length > 0 ? authorNodes : authorNodesEn).map(a => a.textContent);
+      // 著者: <author><ja><name>...</name></ja></author>
+      const authorJaNames = entry.querySelectorAll('author > ja > name');
+      const authorEnNames = entry.querySelectorAll('author > en > name');
+      const authorSrc = authorJaNames.length > 0 ? authorJaNames : authorEnNames;
+      let authors = Array.from(authorSrc).map(a => a.textContent.trim());
       const authorStr = authors.length > 3
         ? authors.slice(0, 3).join(', ') + ` 他${authors.length - 3}名`
         : authors.join(', ') || '著者不明';
 
-      const year = entry.querySelector('pubyear')?.textContent || '';
-      const journal = entry.querySelector('material_title[lang="ja"]')?.textContent
-        || entry.querySelector('material_title[lang="en"]')?.textContent || '';
-      const doi = entry.querySelector('doi')?.textContent || '';
-      const link = entry.querySelector('link')?.getAttribute('href')
-        || (doi ? `https://doi.org/${doi}` : '');
+      const year = entry.querySelector('pubyear')?.textContent?.trim() || '';
+      const journal = entry.querySelector('material_title > ja')?.textContent?.trim()
+        || entry.querySelector('material_title > en')?.textContent?.trim() || '';
+      const doi = entry.querySelector('prism\\:doi, doi')?.textContent?.trim() || '';
+      const linkJa = entry.querySelector('article_link > ja')?.textContent?.trim() || '';
+      const linkEn = entry.querySelector('article_link > en')?.textContent?.trim() || '';
+      const linkFallback = entry.querySelector('link')?.getAttribute('href') || '';
+      const link = linkJa || linkEn || linkFallback || (doi ? `https://doi.org/${doi}` : '');
 
       const keywords = [];
-      entry.querySelectorAll('keyword[lang="ja"]').forEach(k => keywords.push(k.textContent));
-      if (keywords.length === 0) {
-        entry.querySelectorAll('keyword[lang="en"]').forEach(k => keywords.push(k.textContent));
-      }
 
       papers.push({
         source: 'jstage', title, titleEn, abstract, authorStr, year, journal, doi,
