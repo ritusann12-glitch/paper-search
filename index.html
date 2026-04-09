@@ -28,6 +28,15 @@
   .status { text-align: center; padding: 20px; color: #888; font-size: 0.95rem; }
   .paper { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: box-shadow 0.2s; }
   .paper:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .overview-card { background: linear-gradient(135deg, #f0faf6 0%, #eef3ff 100%); border: 2px solid #43b89c; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .overview-card h2 { font-size: 1.1rem; color: #2d3748; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .overview-card h2::before { content: ''; display: inline-block; width: 4px; height: 20px; background: #43b89c; border-radius: 2px; }
+  .overview-body { font-size: 0.92rem; line-height: 1.8; color: #444; margin-bottom: 14px; white-space: pre-line; }
+  .overview-sources { font-size: 0.78rem; color: #888; line-height: 1.7; border-top: 1px solid #dde6e3; padding-top: 12px; }
+  .overview-sources a { color: #43b89c; text-decoration: none; }
+  .overview-sources a:hover { text-decoration: underline; }
+  .overview-sources summary { cursor: pointer; color: #43b89c; font-weight: 600; margin-bottom: 6px; }
+  .overview-translating { font-size: 0.8rem; color: #999; font-style: italic; margin-bottom: 8px; }
   .paper-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; font-weight: 600; }
   .badge-pubmed { background: #e3f0ff; color: #3a7bd5; }
   .badge-jstage { background: #fff3e0; color: #e67e22; }
@@ -430,6 +439,129 @@ function renderPaperCard(paper, container) {
   }
 }
 
+// ===== 総合要約カード生成 =====
+function renderOverviewCard(query, allPapers, pubmedCount, jstageCount, container) {
+  const card = document.createElement('div');
+  card.className = 'overview-card';
+
+  // 年の範囲
+  const years = allPapers.map(p => parseInt(p.year)).filter(y => !isNaN(y));
+  const yearMin = years.length > 0 ? Math.min(...years) : null;
+  const yearMax = years.length > 0 ? Math.max(...years) : null;
+  const yearRange = yearMin && yearMax ? (yearMin === yearMax ? `${yearMin}年` : `${yearMin}〜${yearMax}年`) : '';
+
+  // キーワード/MeSH頻度集計
+  const topicCount = {};
+  allPapers.forEach(p => {
+    const tags = [...(p.keywords || []), ...(p.mesh || [])];
+    tags.forEach(t => {
+      const key = t.toLowerCase().trim();
+      if (key.length > 1) topicCount[key] = (topicCount[key] || 0) + 1;
+    });
+  });
+  const topTopics = Object.entries(topicCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(e => e[0]);
+
+  // 論文タイプ集計
+  const typeCount = {};
+  const typeMap = {
+    'Journal Article': '学術論文', 'Review': 'レビュー', 'Systematic Review': 'システマティックレビュー',
+    'Meta-Analysis': 'メタアナリシス', 'Randomized Controlled Trial': 'RCT',
+    'Clinical Trial': '臨床試験', 'Case Reports': '症例報告', 'Observational Study': '観察研究',
+    'Comparative Study': '比較研究', 'Practice Guideline': 'ガイドライン',
+  };
+  allPapers.forEach(p => {
+    (p.pubTypes || []).forEach(t => {
+      const ja = typeMap[t];
+      if (ja && ja !== '学術論文') typeCount[ja] = (typeCount[ja] || 0) + 1;
+    });
+  });
+  const typeStr = Object.entries(typeCount).sort((a,b) => b[1]-a[1]).map(e => `${e[0]}${e[1]}件`).join('、');
+
+  // 要約本文を構築
+  const lines = [];
+  lines.push(`「${query}」に関する医療論文 ${allPapers.length}件の検索結果をまとめます。`);
+
+  if (yearRange) lines.push(`対象期間: ${yearRange}の論文が含まれています。`);
+
+  const srcParts = [];
+  if (pubmedCount > 0) srcParts.push(`PubMed ${pubmedCount}件`);
+  if (jstageCount > 0) srcParts.push(`J-STAGE ${jstageCount}件`);
+  lines.push(`検索ソース: ${srcParts.join('、')}から取得しました。`);
+
+  if (typeStr) lines.push(`研究タイプ: ${typeStr}が含まれています。`);
+
+  if (topTopics.length > 0) lines.push(`主要テーマ: ${topTopics.join('、')}`);
+
+  // 各論文のタイトルリスト（短縮）
+  lines.push('');
+  lines.push('--- 各論文の概要 ---');
+  allPapers.forEach((p, i) => {
+    const yearStr = p.year ? `(${p.year})` : '';
+    const src = p.source === 'pubmed' ? 'PubMed' : 'J-STAGE';
+    lines.push(`${i + 1}. ${p.title} ${yearStr} [${src}]`);
+  });
+
+  const bodyText = lines.join('\n');
+
+  // 情報ソース一覧
+  const sourceLines = allPapers.map(p => {
+    if (p.source === 'pubmed') {
+      let s = `<a href="${p.url}" target="_blank">PubMed PMID: ${p.pmid}</a>`;
+      if (p.doi) s += ` / <a href="https://doi.org/${p.doi}" target="_blank">DOI: ${p.doi}</a>`;
+      return s;
+    } else {
+      let s = `<a href="${p.url}" target="_blank">J-STAGE</a>`;
+      if (p.doi) s += ` / <a href="https://doi.org/${p.doi}" target="_blank">DOI: ${p.doi}</a>`;
+      return s;
+    }
+  });
+
+  let isTranslatingOverview = false;
+
+  function render(translatedBody) {
+    const displayBody = translatedBody || bodyText;
+    card.innerHTML = `
+      <h2>総合要約</h2>
+      ${isTranslatingOverview ? '<div class="overview-translating"><span class="loading" style="width:14px;height:14px;border-width:2px"></span>英語部分を翻訳中...</div>' : ''}
+      ${translatedBody ? '<div class="overview-translating">* 英語部分はGoogle Translateで自動翻訳しています</div>' : ''}
+      <div class="overview-body">${escapeHtml(displayBody)}</div>
+      <div class="overview-sources">
+        <details>
+          <summary>情報ソース一覧（${allPapers.length}件）</summary>
+          <ol style="margin:8px 0 0 20px;line-height:2">${sourceLines.map(s => `<li>${s}</li>`).join('')}</ol>
+        </details>
+      </div>
+    `;
+  }
+
+  render(null);
+  container.appendChild(card);
+
+  // 英語が含まれていたら翻訳
+  if (!isJapanese(bodyText) || bodyText.match(/[a-zA-Z]{5,}/)) {
+    isTranslatingOverview = true;
+    render(null);
+    (async () => {
+      try {
+        const translated = await translateText(bodyText, 'auto', 'ja');
+        if (translated) {
+          isTranslatingOverview = false;
+          render(translated);
+        } else {
+          isTranslatingOverview = false;
+          render(null);
+        }
+      } catch (e) {
+        isTranslatingOverview = false;
+        render(null);
+      }
+    })();
+  }
+}
+
 // ===== メイン検索 =====
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -491,6 +623,9 @@ form.addEventListener('submit', async (e) => {
     statusDiv.className = 'status';
     statusDiv.textContent = `PubMed: ${pubmedResult.total.toLocaleString()}件中${pubmedPapers.length}件 / J-STAGE: ${jstageResult.total.toLocaleString()}件中${jstagePapers.length}件 を表示`;
     resultsDiv.appendChild(statusDiv);
+
+    // 総合要約カード（一番上に表示）
+    renderOverviewCard(query, allPapers, pubmedPapers.length, jstagePapers.length, resultsDiv);
 
     // 各タブの論文リスト
     const allList = document.createElement('div');
